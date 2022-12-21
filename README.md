@@ -10,6 +10,9 @@ https://discord.gg/ztbr6bSPcA
 ### Current working projects in this repo:    
 *Member's Edge* Discord bot (@steelandquill)    
 
+### On Hold: 
+FlowBot (@steelandquill)
+
 ### External projects: 
 Economic calendar scraping (@captnamurica)
 
