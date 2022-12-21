@@ -8,12 +8,12 @@ in the BurryEdge Discord server at
 https://discord.gg/ztbr6bSPcA
 
 ### Current working projects in this repo:    
-Options flow Discord bot (@steelandquill)    
+*Member's Edge* Discord bot (@steelandquill)    
 
 ### External projects: 
 Economic calendar scraping (@captnamurica)
 
 Roaring Kitty-inspired spreadsheet project (@thesuperspy)
 
-Pull requests to this repo checked weekly. 
+Pull requests to this repo checked monthly. 
 
