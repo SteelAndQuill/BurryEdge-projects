@@ -15,7 +15,7 @@ FlowBot (@steelandquill)
 
 ## External projects: 
 Economic calendar scraping (@captnamurica)
-
+BurryBot (@captnamurica)
 
 ## Roaring Kitty-inspired spreadsheet project (@thesuperspy)
 Consolidated post with most current Spreadsheet Project info as of 4 JAN 2023. See the Discord channel for the most up-to-date info.
