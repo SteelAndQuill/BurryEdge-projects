@@ -15,7 +15,7 @@ https://discord.gg/ztbr6bSPcA
 FlowBot (@steelandquill)
 
 ## External projects: 
-Economic calendar scraping (@captnamurica)
+Economic calendar scraping (@captnamurica)    
 BurryBot (@captnamurica)
 
 ## Roaring Kitty-inspired spreadsheet project (@thesuperspy)
