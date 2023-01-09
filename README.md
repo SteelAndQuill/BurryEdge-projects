@@ -40,7 +40,7 @@ Wheel Strategy Dashboard v0.5
 ### Other Members' Spreadsheet Projects:
 @marco Fundamental Sheet: https://docs.google.com/spreadsheets/d/1fTbLUElroldIrfFC5It26XDcxH5AviOpTqQp81g-YTI/edit?usp=sharing
 @IvoPivo Screener: https://docs.google.com/spreadsheets/d/1OT-z_QMjmof3SglCtRXb81HnYlROpyIsMhRBbdY07Oc/edit?usp=sharing
-@jwholin2 Sheet: https://docs.google.com/spreadsheets/d/1OiZzESX3dKu0VphCrQP3uOMdzloW5s701fmTAV5Dygk/edit?usp=sharing
+@jwhohlin2 Sheet: https://docs.google.com/spreadsheets/d/1OiZzESX3dKu0VphCrQP3uOMdzloW5s701fmTAV5Dygk/edit?usp=sharing
 > *Some modifications I've made include being able to use quarterly data in the analysis, changing the number of periods you want, and having columns BS-CN that RK likes to use occasionally*
 
 @onlineonly Sheet: https://docs.google.com/spreadsheets/d/1rFKqKklDk-PZFcULPtzvquo1muaspDloE3dhGADGHX4/edit?usp=sharing
