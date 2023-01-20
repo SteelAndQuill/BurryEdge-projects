@@ -171,25 +171,32 @@ def query_caller(conn, name):
     """
     Query caller by Discord ID in the callers table
     :param conn: the Connection object
-    :param name: the player's Discord User ID
+    :param name: the player's Discord User Name
     :return:
     """
     cur = conn.cursor()
-    cur.execute("SELECT id FROM callers WHERE name=?", (name))
+    cur.execute("SELECT id FROM callers WHERE name=?", (str(name),))
 
-    caller_id = cur.fetchall()
-
+    caller_pull = cur.fetchall()
+    caller_id = caller_pull[0][0]
     return caller_id
 
-def query_pick(conn, id):
+def query_pick(conn, name, ticker):
     """
     Query caller by DB ID in the thesis table
     :param conn: the Connection object
-    :param id: the player's database ID
+    :param id: the player's database name
     :return:
     """
+    #debug
+    print("Name supplied")
+    print(name)
+    print(type(name))
+    print("Ticker supplied")
+    print(ticker)
+    print(type(ticker))
     cur = conn.cursor()
-    cur.execute("SELECT ticker,target,direction,target_date FROM thesis WHERE id=?", (id))
+    cur.execute("SELECT ticker,target,direction,target_date FROM thesis WHERE name=? AND ticker=?", (str(name), str(ticker)))
 
     caller_pick= cur.fetchall()
 
@@ -205,8 +212,25 @@ def close_thesis(conn, name):
     """
     sql = 'DELETE FROM thesis WHERE name=?'
     cur = conn.cursor()
-    cur.execute(sql, (name,))
+    cur.execute(sql, (str(name),))
     conn.commit()
+
+def fix_thesis(name, ticker, target):
+    """
+    Fix a thesis by caller name and ticker
+    param conn: Connection to the SQLite DA
+    param name: User's Discord Username
+    param ticker: Ticker thesis to fix
+    param target: New target number to insert
+    """
+    database = r"D:\github\python\burryedge\flowbot-master\data\ruthcalls.db"
+    # create the database connection
+    conn = create_connection(database)
+    with conn:
+        sql = "UPDATE thesis SET target=? WHERE name=? AND ticker=?"
+        cur = conn.cursor()
+        cur.execute(sql, (int(target),str(name),str(ticker)))
+        conn.commit()
 
 def reset_game(conn):
     """
@@ -250,21 +274,23 @@ def baberuth(name, ticker, direction, target, why, percent_wager, target_date):
     # create the database connection
     conn = create_connection(database)
     with conn:
-        # add new caller - YOU MUST FORCE THE TYPES OR THE DATABASE REJECTS THE INSERT
+        # add new caller
         caller = (str(name), str(begin_date), str(target_date))
         caller_id = add_caller(conn, caller)
 
-        # add new thesis - YOU MUST FORCE THE TYPES OR THE DATABASE REJECTS THE INSERT
+        # add new thesis
         thesis = (str(name), str(ticker), int(target), int(direction), str(why), int(percent_wager), int(1), int(caller_id), str(begin_date), str(target_date))
         create_thesis(conn, thesis)
 
-        # initial point credit - YOU MUST FORCE THE TYPES OR THE DATABASE REJECTS THE INSERT
+        # initial point credit
         score = (str(name), int(1000), int(caller_id))
         first_points(conn, score)
 
-def babe_swing(name):
+def babe_swing(name, ticker):
     database = r"D:\github\python\burryedge\flowbot-master\data\ruthcalls.db"
-
+    #debug
+    print("Caller is")
+    print(name)
     # check today's date
     today = datetime.today().strftime('%Y-%m-%d')
     query_date = datetime.strptime(today,'%Y-%m-%d')
@@ -274,56 +300,66 @@ def babe_swing(name):
     with conn:
 
         caller_id = query_caller(conn, name)
-        pick = query_pick(conn, caller_id) #returns (ticker,target,direction,target_date)
-        ticker = pick[0]
-        target = pick[1]
-        direction = pick[2]
-        target_dstring = pick[3]
+        pick = query_pick(conn, name, ticker) #returns (ticker,target,direction,target_date)
+        #debug
+        print("Pick returns:")
+        print(pick)
+        ticker = pick[0][0]
+        target = pick[0][1]
+        direction = pick[0][2]
+        target_dstring = pick[0][3]
         target_date = datetime.strptime(target_dstring,'%Y-%m-%d')
         url = stock_pull(ticker)
         data = get_jsonparsed_data(url)
-        price = data['price']
+        print("returning json data looks like:")
+        print(data)
+        price = data[0]['price']
+        #temp data to make code functional
+        new_score = 1000
         if direction == 1:
             if query_date >= target_date:
                 if price >= target:
                     new_score = 1500
                     score_msg = f' Your new score is {new_score}'
-                    response = "It's kinda late, but you're over target. +500." + score_msg
+                    response = "It's kinda late, but you're over target. +500 pts." + score_msg
                 else:
                     new_score = 500
                     score_msg = f' Your new score is {new_score}'
-                    response = "Caught in the bottom of the 9th inning. You're out! -500." + score_msg
+                    response = "Caught in the bottom of the 9th inning. You're out! -500 pts." + score_msg
             else:
                 if price >= target:
-                    new_score = 1500
+                    new_score = 2000
                     score_msg = f' Your new score is {new_score}'
-                    response = "It's outta the park, folks! +500." + score_msg
+                    response = "It's outta the park, folks! +1000 pts." + score_msg
                 else:
-                    response = "Nope. Not yet."
+                    response = f"Nope. Not yet. Target: Over {target} by {target_date}.\nCurrently {price}."
         elif direction == 0:
             if query_date >= target_date:
                 if price <= target:
                     new_score = 1500
                     score_msg = f' Your new score is {new_score}'
-                    response = "It's kinda late, but it's over the fence. +500." + score_msg
+                    response = "It's kinda late, but it's over the fence. +500 pts." + score_msg
                 else:
                     new_score = 500
                     score_msg = f' Your new score is {new_score}'
-                    response = "Caught in the bottom of the 9th inning. You're out! -500." + score_msg
+                    response = "Caught in the bottom of the 9th inning. You're out! -500 pts." + score_msg
             else:
                 if price <= target:
                     new_score = 1500
                     score_msg = f' Your new score is {new_score}'
                     response = "It's outta the park, folks! +500." + score_msg
                 else:
-                    response = "Nope. Not yet."
+                    response = f"Nope. Not yet. Target: Under {target} by {target_date}.\nCurrently {price}."
         else:
             response = "Something went wrong."
-        #temp data to make code functional
-        #new_score = 1500
 
-        update_points(conn, (new_score, caller_id))
+        update_points(conn, (int(new_score), int(caller_id)))
     return response
+
+
+
+    
+
 
 #Artifact for one-time command line runs
 '''
