@@ -7,8 +7,9 @@ in the BurryEdge Discord server at
 
 https://discord.gg/ztbr6bSPcA
 
+
 ### Current working projects in this repo:
-*Member's Edge* Discord bot (@steelandquill)
+*Members' Edge* Discord bot (@steelandquill)
 [Wiki](https://github.com/SteelAndQuill/BurryEdge-projects/wiki/Members'-Edge-Roadmap)
 
 ### On Hold:
