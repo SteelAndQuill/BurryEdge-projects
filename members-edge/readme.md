@@ -8,6 +8,7 @@ Members' Edge is currently locally hosted by Steelandquill. It will transition t
 
 ## Operating Modules
 * Text responses
+* FMP commands (Economic Calendar, Metrics, 13Fs, etc.)
 * Community inside joke responses
 * Baberuth "betting" game (partially functional)
 * Paper Trading Competition (partially functional)
