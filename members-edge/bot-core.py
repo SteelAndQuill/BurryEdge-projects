@@ -1,11 +1,13 @@
 import discord
 import os
 import dotenv
+import time
 import baberuth as bruh
 import papertrade as ptc
 from discord import option
 from datetime import datetime
 import finmp as fmp
+from iso3166 import ISO3166
 
 # What? You thought I would just hardcode the token?
 dotenv.load_dotenv()
@@ -16,11 +18,16 @@ intents = discord.Intents.all()
 
 bot = discord.Bot(intents=intents)
 
-ver_info = "Members' Edge v0.8 - Maintained by @Steelandquill#6141"
+ver_info = "Members' Edge v0.8.6 - @SteelAndQuill#6141"
 burryedge = 853067058380406794 #guild id
+theexchange = 838967729603870821 #guild id
 test_chan = 1059698556950286367 #member-edge-test channel
 paper_chan = 1064065700769046579 #paper-trade (beta) channel
 v4_chan = 1040378649414746112 #vote-4-channel channel
+econ_cal_chan = 962178771270647828 #economic-calendar-channel
+tifu_chan = 1070763256429428835 # BurryEdge "How I Fucked Up" forum channel
+
+scion_cik = "0001649339" #burry_cik
 
 @bot.event    
 async def on_ready():
@@ -36,6 +43,12 @@ async def on_message(message):
 
     if message.content.startswith('!ohno'):
         await message.channel.send("Did you hear that? I thought I heard someone whisper. All caps, please.")
+
+    if message.content.startswith('!cathie'):
+        await message.channel.send('In 1929, 1973, 2000, and 2008, a better short than any company was the guy who would be buying all the way down.\n - *Michael Burry*')
+
+    if message.content.startswith('!advice'):
+        await message.channel.send("If you're seeing the economy on the verge of collapse you should do the logical thing and suck a profit from it.\n - *Michael Burry*")
 
     # Arcane artifact for the little server also testing this bot.
     if message.content.startswith('!DRS'):
@@ -79,7 +92,7 @@ async def about(ctx):
         color=discord.Colour.dark_red(), 
     )
     embed.add_field(name="Hope:", value="Dear VET, hallowed be thy name. Please bring gas. May Europe be cold, and our portfolios look like heaven. \nAmen", inline=False)
-    embed.set_thumbnail(url="https://www.cccchelmsford.org/wp-content/uploads/2020/06/vigil.jpg")
+    embed.set_image(url="https://www.cccchelmsford.org/wp-content/uploads/2020/06/vigil.jpg")
     embed.set_footer(text=ver_info)
  
     await ctx.respond("Let us gather and hope.", embed=embed)
@@ -248,7 +261,280 @@ async def propose_channel(
         await prompt.create_thread(name=f"Discussion on {ticker}", auto_archive_duration=1440)
         await ctx.followup.send(f"Your proposal has been registered in <#{v4_chan}>")
 
-# Admin-only Commands below
+@bot.slash_command(name="tifu", description="Fill out some info about a hard lesson learned.", guild_ids = [burryedge])
+@option("item_1", description="What was your (wrong) thesis? (Try to keep it to a sentence)")
+@option("item_2", description="What ended up happening?")
+@option("item_3", description="Should you have seen it coming?")
+@option("item_4", description="Why didn't you see it coming?")
+@option("item_5", description="What did you learn from this? (High-level. Discord has character limits")
+@option("link", description="(Optional) Got a link to an article or media enshrining your lesson learned?")
+async def tifu(
+    ctx,
+    item_1: str,
+    item_2: str,
+    item_3: str,
+    item_4: str,
+    item_5: str,
+    link: str=None,
+):
+    await ctx.defer()
+    from_line = ctx.channel_id
+    user = ctx.author.id
+    auteur = ctx.author
+    channel = bot.get_channel(tifu_chan)
+    
+    header_1 = "**__What I thought:__**" + '\n' + item_1
+    header_2 = "**__What actually ended up happening:__**"  + '\n' + item_2
+    header_3 = "**__Should I have seen it coming?__**" + '\n' + item_3
+    header_4 = "**__Why didn't I?__**" + '\n' + item_4
+    header_5 = "**__LESSON LEARNED:__**" + '\n' + item_5
+    if link is not None:
+        header_link = f"Read more here:\n({link})\n - {auteur}"
+    else:
+        header_link = f"Thanks for reading.\n - {auteur}"
+
+    payload = [header_1,header_2,header_3,header_4,header_5,header_link]
+    for item in payload:
+        await channel.send(item)
+        time.sleep(0.5)
+    
+    if from_line is not tifu_chan:
+        await ctx.followup.send(f"This command only posts in <#{tifu_chan}. See your post there.>", delete_after=30)
+    else:
+        await ctx.followup.send(f"Invoice: Dues to Mr. Market. Bill to: <@{user}>")
+
+'''1. How were you fucked?
+2. Should you have known?
+3. Why didn't you know?
+4. Any lessons moron?
+5. Links - media ect..'''
+
+@bot.slash_command(name="metrics", description="Quick TTM metrics.", guild_ids = [burryedge, theexchange])
+@option("ticker", description="Enter the ticker symbol of the stock you want to check")
+async def metrics_card(
+    ctx,
+    ticker: str,
+):
+    await ctx.defer()
+    user = ctx.author
+    metrics_list = fmp.biz_metrics(ticker)
+    #print("Returned metrics:")
+    #print(metrics_list)
+    #just in case anyone gets creative
+    metrics = metrics_list[0]
+    quote_list = fmp.stock_quote(ticker)
+    print("Returned quote:")
+    print(quote_list)
+    #just in case anyone gets creative
+    quote = quote_list[0]
+    profile_list = fmp.profile(ticker)
+    print("Returned profile:")
+    print(profile_list)
+    profile = profile_list[0]
+
+    name = quote['name']
+    spot = quote['price']
+
+    yearHigh = quote['yearHigh']
+    yearLow = quote['yearLow']
+    priceAvg50 = quote['priceAvg50']
+    priceAvg200 = quote['priceAvg200']
+    revPerShare = metrics['revenuePerShareTTM']
+    netPerShare = metrics['netIncomePerShareTTM']
+    fcfPerShare = metrics['freeCashFlowPerShareTTM']
+    debtPerShare = metrics['interestDebtPerShareTTM']
+
+    image_url = profile['image']
+    mktCap = profile['mktCap']/1000000
+
+    embed = discord.Embed(
+        title=name,
+        description=f"Here's the info requested by {user} for {ticker}.\n\nData provided by\n[Financial Modeling Prep](https://financialmodelingprep.com/developer/docs/)",
+        color=discord.Colour.gold(),
+    )
+    embed.add_field(name="Current Price", value=f"{spot:.2f}", inline=False)
+    embed.add_field(name="Market Cap",value=f"${mktCap:.3f}M", inline=False)
+    embed.add_field(name="52W Low & High", value=f"({yearLow:.2f}, {yearHigh:.2f})", inline=False)
+    embed.add_field(name="50DMA & 200DMA", value=f"({priceAvg50:.2f}, {priceAvg200:.2f})", inline=False)
+    embed.add_field(name="Revenue Per Share (TTM)", value=f"{revPerShare:.2f}", inline=False)
+    embed.add_field(name="Net Income Per Share (TTM)", value=f"{netPerShare:.2f}", inline=False)
+    embed.add_field(name="FCF Per Share (TTM)", value=f"{fcfPerShare:.2f}", inline=False)
+    embed.add_field(name="Debt + Service Per Share (TTM)", value=f"{debtPerShare:.2f}", inline=False)
+    embed.set_thumbnail(url=image_url)
+    embed.set_footer(text=ver_info)
+    await ctx.followup.send(embed=embed)
+
+@bot.slash_command(name="company_profile", description="Official description of the company.", guild_ids = [burryedge, theexchange])
+@option("ticker", description="Enter the ticker symbol of the stock you want to check")
+async def metrics_card(
+    ctx,
+    ticker: str,
+):
+    await ctx.defer()
+    quote_list = fmp.stock_quote(ticker)
+    print("Returned quote:")
+    print(quote_list)
+    #just in case anyone gets creative
+    quote = quote_list[0]
+    profile_list = fmp.profile(ticker)
+    print("Returned profile:")
+    print(profile_list)
+    profile = profile_list[0]
+
+    name = quote['name']
+    spot = quote['price']
+
+    image_url = profile['image']
+    mktCap = profile['mktCap']/1000000
+    about_profile = profile['description']
+
+    embed = discord.Embed(
+        title=name,
+        description=f"Data provided by\n[Financial Modeling Prep](https://financialmodelingprep.com/developer/docs/)",
+        color=discord.Colour.gold(),
+    )
+    embed.add_field(name="Current Price", value=f"{spot:.2f}", inline=False)
+    embed.add_field(name="Market Cap",value=f"${mktCap:.3f}M", inline=False)
+    embed.set_thumbnail(url=image_url)
+    embed.set_footer(text=ver_info)
+    await ctx.followup.send(about_profile, embed=embed)
+
+
+# ------- Contributor-only commands -----------------
+
+@bot.slash_command(name = "scion_13f", description = "See Burry's last known holdings", guild_ids = [burryedge])
+@discord.default_permissions(
+    manage_messages=True,
+)  # Only members with this permission can use this command.
+async def scion_13f(
+    ctx, 
+):
+    await ctx.defer()
+    dates = fmp.get_13f_dates(scion_cik)
+    last = dates[0]
+    table = fmp.get_13f_latest(scion_cik, last)
+    #link = table.loc["link"][0]
+    embed = discord.Embed(
+            title='Scion Asset Management',
+            description=f"13F reported holdings as of {last}.\nData provided by [Financial Modeling Prep](https://financialmodelingprep.com/developer/docs/)",
+            color=discord.Colour.gold(),
+        )
+    for index, row in table.iterrows():
+        #do stuff
+        stickx = f'{row["tickercusip"]}: {row["titleOfClass"]} class'
+        sticky = f'{row["percent"]:.2f}%, {row["shares"]} @ ${row["mark"]:.2f}'
+        embed.add_field(name=stickx, value=sticky, inline=False)
+    embed.set_footer(text=ver_info)
+    await ctx.followup.send(embed=embed)
+
+'''"tickercusip": "GEO",
+    "nameOfIssuer": "GEO GROUP INC NEW",
+    "shares": 2019150,
+    "titleOfClass": "COM",
+    "value": 15547000,
+    "link": "https://www.sec.gov/Archives/edgar/data/1649339/000156761922019784/0001567619-22-019784-index.htm",
+'''
+
+@bot.slash_command(name="cik_lookup", description="Find matching CIKs for a fund name. Returns only names who filed 13Fs.", guild_ids = [burryedge])
+@option("name", description="Partial or full name of the fund. Avoid partial matches to 'market' or 'invest'.")
+@discord.default_permissions(
+    manage_messages=True,
+)  # Only members with this permission can use this command.
+async def cik_lookup(
+    ctx, 
+    name:str,
+):
+    await ctx.defer(ephemeral=True)
+    ciklist = fmp.get_13f_firms(name)
+    items = len(ciklist)
+    if not ciklist:
+        await ctx.followup.send("Your search returned no matching results.")
+    elif items > 10:
+        await ctx.followup.send("Your search returned more than 10 results. Please refine your search.")
+    else:
+        embed = discord.Embed(
+            title=f'CIK Search: {name}',
+            description=f"{items} matching funds.\nData provided by [Financial Modeling Prep](https://financialmodelingprep.com/developer/docs/)",
+            color=discord.Colour.dark_gray(),
+        )  
+        for dicto in ciklist:
+            embed.add_field(name=str(dicto["cik"]),value=str(dicto["name"]))
+        embed.set_footer(text=ver_info)
+        await ctx.followup.send("Found matches.",embed=embed)
+
+@bot.slash_command(name="thirteen_f", description="Get latest 13F for the supplied CIK", guild_ids = [burryedge])
+@option("CIK", description="Fund CIK. Use /cik_lookup if you don't know it.")
+@discord.default_permissions(
+    manage_messages=True,
+)  # Only members with this permission can use this command.
+async def thirteen_f(
+    ctx, 
+    cik:str,
+):
+    await ctx.defer(ephemeral=True)
+    dates = fmp.get_13f_dates(cik)
+
+    if not dates:
+        await ctx.followup.send(f"FMP has no record of 13Fs ever filed for this CIK: {cik}")
+    else:
+        last = dates[0]
+        table = fmp.get_13f_latest(cik, last)
+        fundname = fmp.get_cik_name(cik)
+        #link = table.loc["link"][0]
+        
+        if len(table.index) > 15:
+            embed = discord.Embed(
+                title=f'{fundname}',
+                description=f"Top 15 13F reported holdings as of {last}.\nSee it all at: [13F]({table.iloc[0, table.columns.get_loc('link')]}) \nData provided by [Financial Modeling Prep](https://financialmodelingprep.com/developer/docs/)",
+                color=discord.Colour.gold(),
+            )
+            table15 = table.iloc[0:15]
+            for index, row in table15.iterrows():
+                #do stuff
+                stickx = f'{row["tickercusip"]}: {row["titleOfClass"]} class'
+                sticky = f'{row["percent"]:.2f}%, {row["shares"]} @ ${row["mark"]:.2f}'
+                embed.add_field(name=stickx, value=sticky, inline=False)
+            embed.set_footer(text=ver_info)
+            await ctx.followup.send(embed=embed)
+        else:
+            embed = discord.Embed(
+                title=f'{fundname}',
+                description=f"All 13F reported holdings as of {last}.\nCheck the filing at: [13F]({table.iloc[0, table.columns.get_loc('link')]}) \nData provided by [Financial Modeling Prep](https://financialmodelingprep.com/developer/docs/)",
+                color=discord.Colour.gold(),
+            )
+            for index, row in table.iterrows():
+                #do stuff
+                stickx = f'{row["tickercusip"]}: {row["titleOfClass"]} class'
+                sticky = f'{row["percent"]:.2f}%, {row["shares"]} @ ${row["mark"]:.2f}'
+                embed.add_field(name=stickx, value=sticky, inline=False)
+            embed.set_footer(text=ver_info)
+            await ctx.followup.send(embed=embed)
+        
+
+# ------- Admin-only Commands below -----------------
+
+@bot.slash_command(name="high_cal", description="Admin Only: Yesterday & Today High-Impact Econ Calendar.", guild_ids = [burryedge, theexchange])
+@option("day", description="Which day do you want?", choices=["Yesterday","Today","Tomorrow"])
+@discord.default_permissions(
+    manage_guild=True,
+)  # Only members with this permission can use this command.
+async def get_high_cal(ctx,day:str):
+    await ctx.defer()
+    info = fmp.get_econs(day)
+    items = len(info)
+    channel = bot.get_channel(econ_cal_chan)
+    for report in info:
+        await channel.send(report)
+        time.sleep(0.5)
+    if day == "Yesterday":
+        await ctx.followup.send(f"**📅Yesterday's Economic Events: {items} items.**\n\n")
+    elif day == "Today":
+        await ctx.followup.send(f"**📅Today's Economic Events: {items} items.**\n\n")
+    elif day == "Tomorrow":
+        await ctx.followup.send(f"**🔮Tomorrow's Economic Events: {items} items.**\n\n")
+    else:
+        await ctx.followup.send(f"**Error**\n\n")
+
 
 @bot.slash_command(name = "admin_swing", description = "Manually check a thesis", guild_ids = [burryedge])
 @discord.default_permissions(
@@ -318,8 +604,8 @@ async def paper_round(
     dbresponse = ptc.create_round(desc,start_date,end_date,seed,max_pct,max_cap,min_cap,max_pos,detail)
 
     embed = discord.Embed(
-    title=desc,
-    description="A new round.",
+    title="Paper Trading Competition",
+    description="A new round was created.",
     color=discord.Colour.blurple(),
     )
     embed.add_field(name="Description", value=desc, inline=False)
@@ -344,7 +630,17 @@ async def fetch_table(
     ctx,
     table: str
 ):
+    await ctx.defer(ephemeral=True)
     message = ptc.show_table(table)
-    await ctx.respond(message, ephemeral=True)
+    await ctx.followup.send(message)
+
+@bot.slash_command(name="admin_drop_round", description= "Admin only: Erase rules for a specified round.")
+@discord.default_permissions(
+    manage_guild=True,
+)  # Only members with this permission can use this command.
+async def admin_drop_round(ctx, round:int):
+    await ctx.defer(ephemeral=True)
+    message = ptc.delete_round(round)
+    await ctx.followup.send(message)
 
 bot.run(TOKEN)
