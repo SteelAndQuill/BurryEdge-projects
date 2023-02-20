@@ -27,11 +27,7 @@ BurryBot (@captnamurica)
    ![image](https://user-images.githubusercontent.com/89479282/205949161-4b508c6d-19a7-49b6-b8ed-7525ddbef430.png)
 4. Store the token to `.env` under the `DISCORD_BOT_TOKEN`
 
-   ![image](https://user-images.githubusercontent.com/89479282/207357762-94234aa7-aa55-4504-8dfd-9c68ae23a826.png)
-
-5. Turn MESSAGE CONTENT INTENT `ON`
-
-   ![image](https://user-images.githubusercontent.com/89479282/205949323-4354bd7d-9bb9-4f4b-a87e-deb9933a89b5.png)
+5. Turn ALL CONTENT INTENTS `ON`
 
 6. Invite your bot to your server via OAuth2 URL Generator
 
