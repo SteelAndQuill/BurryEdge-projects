@@ -1,0 +1,10 @@
+  - type: web
+    name: burryedge-discord-bot
+    env: docker
+    dockerfilePath: . # optional
+    dockerContext: .
+    region: ohio
+    plan: free
+    branch: main
+    healthCheckPath: /
+    numInstances: 1
