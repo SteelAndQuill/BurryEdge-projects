@@ -183,6 +183,84 @@ def define_rules(conn, round_rules): #input round_rules is tuple(int round,int s
     conn.commit()
     return cur.lastrowid
 
+def round_rules(conn, round):
+    """
+    Query rules for current round
+    :param conn: Connection to the SQLite database
+    :param name: tuple(int round,)
+    :return: tuple(int id, int round,int seed,int max, int max_cap, int min_cap,int max_pos,str description)
+    """
+    sql = ''' SELECT * FROM rules WHERE round=? '''
+    cur = conn.cursor()
+    cur.execute(sql, round)
+    rules = cur.fetchall()
+    return rules[0] #(str name, float cash_balance, float port_value, int round, int player_id,)
+
+def credit_player(conn, credit): #id integer,name text,cash_balance real,port_value real,round integer,player_id integer,
+    """
+    Credit new account with value of seed defined in round rules.
+    :param conn: Connection to the SQLite database
+    :param credit: tuple(str name,float cash_balance, float port_value, int round, int player_id,)
+    :return: round id"""
+    sql = ''' INSERT OR IGNORE INTO performance(name,cash_balance,port_value,round,player_id)
+              VALUES(?,?,?,?,?) '''
+    cur = conn.cursor()
+    cur.execute(sql, credit)
+    conn.commit()
+    return cur.lastrowid
+
+def cash_transact(conn, transaction): #transaction is tuple(float cash_balance, str name)
+    """
+    Update a player's cash balance
+    :param conn: Connection to the SQLite database
+    :param name: tuple(float cash_balance, str name)
+    :return: lastrowid
+    """
+    sql = ''' UPDATE performance SET cash_balance=? WHERE name=? '''
+    cur = conn.cursor()
+    cur.execute(sql, transaction)
+    conn.commit()
+    return cur.lastrowid
+
+def player_perf(conn, name):
+    """
+    Query a player's performance info
+    :param conn: Connection to the SQLite database
+    :param name: tuple(str name,)
+    :return: tuple(int id, text name, float cash_balance, float port_value, int round, int player_id)
+    """
+    sql = ''' SELECT * FROM performance WHERE name=? '''
+    cur = conn.cursor()
+    cur.execute(sql, name)
+    playerinfo = cur.fetchall()
+    return playerinfo[0]
+
+def drop_round(conn, round): #input round is tuple(int round,)
+    """
+    Drop unnecessary rounds created in testing
+    :param conn: Connection to the SQLite Database
+    :param round: tuple(int round,)
+    :return: None
+    """
+    sql1 = ''' DELETE FROM rules WHERE round=? '''
+    sql2 = ''' DELETE FROM rounds WHERE round=? '''
+    cur=conn.cursor()
+    cur.execute(sql1, round)
+    cur.execute(sql2, round)
+    conn.commit()
+
+def current_round(conn):
+    """
+    Fetches last defined round
+    :param conn: Connection to the SQLite Database
+    :return: int round
+    """
+    sql = ''' SELECT * FROM rounds ORDER BY round DESC LIMIT 1; '''
+    cur=conn.cursor()
+    cur.execute(sql)
+    round_id = cur.fetchall()[0][0]
+    return round_id
+
 def new_player(conn, player): #input player is tuple(name,positions,round)
     """
     Create a new player into the players table
@@ -197,14 +275,39 @@ def new_player(conn, player): #input player is tuple(name,positions,round)
     conn.commit()
     return cur.lastrowid
 
+def player_info(conn, name):
+    """
+    Query a player's info
+    :param conn: Connection to the SQLite database
+    :param name: tuple(str name,)
+    :return: tuple(int id, text name, int positions, int round)
+    """
+    sql = ''' SELECT * FROM players WHERE name=? '''
+    cur = conn.cursor()
+    cur.execute(sql, name)
+    playerinfo = cur.fetchall()
+    return playerinfo[0]
+
+def update_player(conn, player_update): #player_update is tuple(int positions, int round, str name)
+    """
+    Update a player's round
+    :param conn: Connection to the SQLite database
+    :param name: tuple(int positions, int round, str name)
+    :return: lastrowid
+    """
+    sql = ''' UPDATE players SET positions=? AND round=? WHERE name=? '''
+    cur = conn.cursor()
+    cur.execute(sql, player_update)
+    conn.commit()
+    return cur.lastrowid
+
 def create_position(conn, buy_order): #buy_order is tuple(str name, str ticker, real basis, int amount, str why, intbool status_id, int player_id, str begin_date, int position_id, int round)
     """
     Create a new position with thesis
     :param conn: Connection to the SQLite database
-    :param thesis:
-    :return:
+    :param buy_order: Tuple matching POSITIONS table
+    :return: lastrowid
     """
-
     sql = ''' INSERT OR IGNORE INTO positions(name,ticker,basis,amount,why,status_id,player_id,begin_date,position_id,round)
               VALUES(?,?,?,?,?,?,?,?,?,?) '''
     cur = conn.cursor()
@@ -212,7 +315,22 @@ def create_position(conn, buy_order): #buy_order is tuple(str name, str ticker, 
     conn.commit()
     return cur.lastrowid
 
-# Functional Section
+def final_position(conn, link_info): #player_id integer,name text,ticker text,position_id integer,round integer,link text,                              
+    """
+    Create a final position with long-form thesis link
+    :param conn: Connection to the SQLite database
+    :param link_info: tuple matching LINKS table
+    :return: lastrowid
+    """
+    stuff = "stuff"
+    sql = ''' INSERT OR IGNORE INTO links(player_id,name,ticker,position_id,round,link)
+              VALUES(?,?,?,?,?,?) '''
+    cur = conn.cursor()
+    cur.execute(sql, link_info)
+    conn.commit()
+    return cur.lastrowid
+
+# ================= Functional Section ========================
 
 def create_round(desc, begin_date, end_date, seed, max_pct, max_cap, min_cap, max_pos, detail): 
     database = r"D:\\github\\python\\burryedge\\flowbot-master\\data\\papertrades.db"
@@ -232,6 +350,91 @@ def create_round(desc, begin_date, end_date, seed, max_pct, max_cap, min_cap, ma
     response = f'Ruleset {rule_id} for round {round_id} created successfully.'
     return response
 
+def register_player(name):
+    """Register a player for a new round. New player or rollover."""
+    database = r"D:\\github\\python\\burryedge\\flowbot-master\\data\\papertrades.db"
+
+    # create the database connection
+    conn = create_connection(database)
+    with conn:
+        round_id = current_round(conn)
+        check = player_info(conn, (str(name),))
+        rules = round_rules(conn, (int(round_id),))
+        if not check:
+            #input player is tuple(name,positions,round)
+            player = (str(name),int(0),int(round_id))
+            registrant = new_player(conn, player)
+            credit = (str(name),float(rules[2]),float(rules[2]),int(round_id),int(registrant)) #id integer,name text,cash_balance real,port_value real,round integer,player_id integer,
+            ledger = credit_player(conn, credit)
+            response = f'{name} successfully registered for Round {round_id} as new investor #{registrant}. ${rules[2]} credited in ledger entry {ledger}.'
+        elif check[3] < round_id:
+            #player_update is tuple(int positions, int round, str name)
+            player_update = (int(check[2]), int(round_id), str(name))
+            updated = update_player(conn, player_update)
+            response = f'Investor #{updated} successfully rolled to Round {round_id}.'
+        else:
+            response = "ERROR: You are already registered for this round."
+
+    return response
+
+def buy_order(name:str,ticker:str,basis:float,amount:int,why:str,link:str=None):
+    """Place an instantaneous buy order."""
+    
+    database = r"D:\\github\\python\\burryedge\\flowbot-master\\data\\papertrades.db"
+    #buy_order is tuple(str name, str ticker, real basis, int amount, str why, intbool status_id, int player_id, str begin_date, int position_id, int round)
+    
+    # assign start date to position in YYYY-MM-DD
+    begin_date = datetime.today().strftime('%Y-%m-%d')
+
+    # create the database connection
+    conn = create_connection(database)
+    with conn:
+
+        round_id = current_round(conn)
+        check = player_info(conn, (str(name),)) # playerinfo tuple(int id, text name, int positions, int round)
+        rules = round_rules(conn, (int(round_id),)) #rules tuple(int id,int round, int seed, int max, int max_cap, int min_cap, int max_pos, str description,)
+
+        if not check:
+            response = f'{name} is not registered for this round. Please run `/paper_register`.'
+        elif check[3] != round_id:
+            response = f'{name} is not registered for this round. Please run `/paper_register`.'
+        else:
+            newposid = check[2] + 1
+            max_pos = rules[6]
+            if newposid > max_pos:
+                response = f'There are already {check[3]} positions held by {name}. No new positions beyond the maximum of {rules[6]} can be opened this round.'
+            elif newposid == max_pos: 
+                stuff="stuff" #change input to require link to be entered.
+                buy_command = (str(name),str(ticker),float(basis),int(amount),str(why),int(1),int(check[0]),str(begin_date),int(newposid),int(check[3]))
+                player_update = (int(newposid), int(round_id), str(name)) #updates position instead of round
+                updated = update_player(conn, player_update) #returns player id
+                posbuyid = create_position(conn, buy_command) #returns purchase order number
+                link_add = (int(updated),str(name),str(ticker),int(posbuyid),int(round_id),str(link)) #player_id integer,name text,ticker text,position_id integer,round integer,link text,
+                link_info = final_position(conn, link_add)
+                response = f'Order number {posbuyid} completed for {name} (player {updated}). Link association number {link_info} filed.'
+            else:
+                buy_command = (str(name),str(ticker),float(basis),int(amount),str(why),int(1),int(check[0]),str(begin_date),int(newposid),int(check[3]))
+                player_update = (int(newposid), int(round_id), str(name)) #updates position instead of round
+                updated = update_player(conn, player_update) #returns player id
+                posbuyid = create_position(conn, buy_command) #returns purchase order number
+                response = f'Order number {posbuyid} completed for {name} (player {updated}).'
+
+    return response
+            
+
+def delete_round(round: int):
+    """Deletes erroneous rounds from table.
+        Returns courtesy message"""
+    database = r"D:\\github\\python\\burryedge\\flowbot-master\\data\\papertrades.db"
+
+    # create the database connection
+    conn = create_connection(database)
+    with conn:
+        drop_round(conn, (int(round),))
+    response = f'Round {round} deleted from database.'
+
+    return response
+    
 def show_table(table_name):
     database = r"D:\\github\\python\\burryedge\\flowbot-master\\data\\papertrades.db"
 
