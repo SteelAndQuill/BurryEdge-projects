@@ -1,23 +1,29 @@
 import sqlite3
 from sqlite3 import Error
-import yfinance
+
+# import yfinance
 import pandas as pd
 from datetime import datetime
 import os
 import dotenv
 import json
 from urllib.request import urlopen
+from pathlib import Path
+import log
+
+logger = log.setup_logger(__name__)
 
 # What? You thought I would just hardcode the API Key?
 dotenv.load_dotenv()
-API = str(os.getenv("FMP_API"))
+FMP_API = str(os.getenv("FMP_API"))
 
 # Many thanks to sqlitetutorial.net
 
 # Define database
 
+
 def create_connection(db_file):
-    """ create a database connection to the SQLite database
+    """create a database connection to the SQLite database
         specified by db_file
     :param db_file: database file
     :return: Connection object or None
@@ -27,12 +33,13 @@ def create_connection(db_file):
         conn = sqlite3.connect(db_file)
         return conn
     except Error as e:
-        print(e)
+        logger.info(e)
 
     return conn
 
+
 def create_table(conn, create_table_sql):
-    """ create a table from the create_table_sql statement
+    """create a table from the create_table_sql statement
     :param conn: Connection object
     :param create_table_sql: a CREATE TABLE statement
     :return:
@@ -41,10 +48,11 @@ def create_table(conn, create_table_sql):
         c = conn.cursor()
         c.execute(create_table_sql)
     except Error as e:
-        print(e)
+        logger.info(e)
+
 
 def create_db():
-    database = r"D:\\github\\python\\burryedge\\flowbot-master\\data\\ruthcalls.db"
+    database = Path("./db/ruthcalls.db")
 
     sql_create_callers_table = """ CREATE TABLE IF NOT EXISTS callers (
                                         id integer PRIMARY KEY,
@@ -87,10 +95,10 @@ def create_db():
         # create thesis table
         create_table(conn, sql_create_thesis_table)
 
-        #create points table
+        # create points table
         create_table(conn, sql_create_points_table)
     else:
-        print("Error! cannot create the database connection.")
+        logger.info("Error! cannot create the database connection.")
 
 
 def add_caller(conn, caller):
@@ -100,12 +108,13 @@ def add_caller(conn, caller):
     :param caller:
     :return: caller id
     """
-    sql = ''' INSERT INTO callers(name,begin_date,target_date)
-              VALUES(?,?,?) '''
+    sql = """ INSERT INTO callers(name,begin_date,target_date)
+              VALUES(?,?,?) """
     cur = conn.cursor()
     cur.execute(sql, caller)
     conn.commit()
     return cur.lastrowid
+
 
 def create_thesis(conn, thesis):
     """
@@ -115,13 +124,14 @@ def create_thesis(conn, thesis):
     :return:
     """
 
-    sql = ''' INSERT INTO thesis(name,ticker,target,direction,why,percent_wager,status_id,call_id,begin_date,target_date)
-              VALUES(?,?,?,?,?,?,?,?,?,?) '''
+    sql = """ INSERT INTO thesis(name,ticker,target,direction,why,percent_wager,status_id,call_id,begin_date,target_date)
+              VALUES(?,?,?,?,?,?,?,?,?,?) """
     cur = conn.cursor()
     cur.execute(sql, thesis)
     conn.commit()
 
     return cur.lastrowid
+
 
 def first_points(conn, score):
     """
@@ -131,13 +141,14 @@ def first_points(conn, score):
     :return:
     """
 
-    sql = ''' INSERT INTO points(name,points,call_id)
-              VALUES(?,?,?) '''
+    sql = """ INSERT INTO points(name,points,call_id)
+              VALUES(?,?,?) """
     cur = conn.cursor()
     cur.execute(sql, score)
     conn.commit()
 
     return cur.lastrowid
+
 
 def update_points(conn, points):
     """
@@ -146,12 +157,13 @@ def update_points(conn, points):
     :param points:
     :return: caller id
     """
-    sql = ''' UPDATE points
+    sql = """ UPDATE points
               SET points = ?
-              WHERE id = ?'''
+              WHERE id = ?"""
     cur = conn.cursor()
     cur.execute(sql, points)
     conn.commit()
+
 
 def query_all_players(conn):
     """
@@ -165,8 +177,9 @@ def query_all_players(conn):
     rows = cur.fetchall()
 
     for row in rows:
-        print(row)
-    
+        logger.info(row)
+
+
 def query_caller(conn, name):
     """
     Query caller by Discord ID in the callers table
@@ -181,6 +194,7 @@ def query_caller(conn, name):
     caller_id = caller_pull[0][0]
     return caller_id
 
+
 def query_pick(conn, name, ticker):
     """
     Query caller by DB ID in the thesis table
@@ -188,17 +202,20 @@ def query_pick(conn, name, ticker):
     :param id: the player's database name
     :return:
     """
-    #debug
-    print("Name supplied")
-    print(name)
-    print(type(name))
-    print("Ticker supplied")
-    print(ticker)
-    print(type(ticker))
+    # debug
+    logger.info("Name supplied")
+    logger.info(name)
+    logger.info(type(name))
+    logger.info("Ticker supplied")
+    logger.info(ticker)
+    logger.info(type(ticker))
     cur = conn.cursor()
-    cur.execute("SELECT ticker,target,direction,target_date FROM thesis WHERE name=? AND ticker=?", (str(name), str(ticker)))
+    cur.execute(
+        "SELECT ticker,target,direction,target_date FROM thesis WHERE name=? AND ticker=?",
+        (str(name), str(ticker)),
+    )
 
-    caller_pick= cur.fetchall()
+    caller_pick = cur.fetchall()
 
     return caller_pick
 
@@ -210,10 +227,11 @@ def close_thesis(conn, name):
     :param name: the player's Discord User ID
     :return:
     """
-    sql = 'DELETE FROM thesis WHERE name=?'
+    sql = "DELETE FROM thesis WHERE name=?"
     cur = conn.cursor()
     cur.execute(sql, (str(name),))
     conn.commit()
+
 
 def fix_thesis(name, ticker, target):
     """
@@ -223,14 +241,15 @@ def fix_thesis(name, ticker, target):
     param ticker: Ticker thesis to fix
     param target: New target number to insert
     """
-    database = r"D:\github\python\burryedge\flowbot-master\data\ruthcalls.db"
+    database = Path("./db/ruthcalls.db")
     # create the database connection
     conn = create_connection(database)
     with conn:
         sql = "UPDATE thesis SET target=? WHERE name=? AND ticker=?"
         cur = conn.cursor()
-        cur.execute(sql, (int(target),str(name),str(ticker)))
+        cur.execute(sql, (int(target), str(name), str(ticker)))
         conn.commit()
+
 
 def reset_game(conn):
     """
@@ -238,16 +257,18 @@ def reset_game(conn):
     :param conn: Connection to the SQLite database
     :return:
     """
-    sql = 'DELETE FROM thesis'
+    sql = "DELETE FROM thesis"
     cur = conn.cursor()
     cur.execute(sql)
     conn.commit()
 
+
 def stock_pull(symbol):
     base = "https://financialmodelingprep.com/api/v3/quote/"
-    appx = "?apikey=" + API
+    appx = "?apikey=" + FMP_API
     url = base + symbol + appx
     return url
+
 
 def get_jsonparsed_data(url):
     """
@@ -265,11 +286,12 @@ def get_jsonparsed_data(url):
     data = response.read().decode("utf-8")
     return json.loads(data)
 
+
 def baberuth(name, ticker, direction, target, why, percent_wager, target_date):
-    database = r"D:\\github\\python\\burryedge\\flowbot-master\\data\\ruthcalls.db"
+    database = Path("./db/ruthcalls.db")
 
     # assign start date to shot call in YYYY-MM-DD
-    begin_date = datetime.today().strftime('%Y-%m-%d')
+    begin_date = datetime.today().strftime("%Y-%m-%d")
 
     # create the database connection
     conn = create_connection(database)
@@ -279,57 +301,76 @@ def baberuth(name, ticker, direction, target, why, percent_wager, target_date):
         caller_id = add_caller(conn, caller)
 
         # add new thesis
-        thesis = (str(name), str(ticker), int(target), int(direction), str(why), int(percent_wager), int(1), int(caller_id), str(begin_date), str(target_date))
+        thesis = (
+            str(name),
+            str(ticker),
+            int(target),
+            int(direction),
+            str(why),
+            int(percent_wager),
+            int(1),
+            int(caller_id),
+            str(begin_date),
+            str(target_date),
+        )
         create_thesis(conn, thesis)
 
         # initial point credit
         score = (str(name), int(1000), int(caller_id))
         first_points(conn, score)
 
+
 def babe_swing(name, ticker):
-    database = r"D:\github\python\burryedge\flowbot-master\data\ruthcalls.db"
-    #debug
-    print("Caller is")
-    print(name)
+    database = Path("./db/ruthcalls.db")
+    # debug
+    logger.info("Caller is")
+    logger.info(name)
     # check today's date
-    today = datetime.today().strftime('%Y-%m-%d')
-    query_date = datetime.strptime(today,'%Y-%m-%d')
+    today = datetime.today().strftime("%Y-%m-%d")
+    query_date = datetime.strptime(today, "%Y-%m-%d")
 
     # create the database connection
     conn = create_connection(database)
     with conn:
 
         caller_id = query_caller(conn, name)
-        pick = query_pick(conn, name, ticker) #returns (ticker,target,direction,target_date)
-        #debug
-        print("Pick returns:")
-        print(pick)
+        pick = query_pick(
+            conn, name, ticker
+        )  # returns (ticker,target,direction,target_date)
+        # debug
+        logger.info("Pick returns:")
+        logger.info(pick)
         ticker = pick[0][0]
         target = pick[0][1]
         direction = pick[0][2]
         target_dstring = pick[0][3]
-        target_date = datetime.strptime(target_dstring,'%Y-%m-%d')
+        target_date = datetime.strptime(target_dstring, "%Y-%m-%d")
         url = stock_pull(ticker)
         data = get_jsonparsed_data(url)
-        print("returning json data looks like:")
-        print(data)
-        price = data[0]['price']
-        #temp data to make code functional
+        logger.info("returning json data looks like:")
+        logger.info(data)
+        price = data[0]["price"]
+        # temp data to make code functional
         new_score = 1000
         if direction == 1:
             if query_date >= target_date:
                 if price >= target:
                     new_score = 1500
-                    score_msg = f' Your new score is {new_score}'
-                    response = "It's kinda late, but you're over target. +500 pts." + score_msg
+                    score_msg = f" Your new score is {new_score}"
+                    response = (
+                        "It's kinda late, but you're over target. +500 pts." + score_msg
+                    )
                 else:
                     new_score = 500
-                    score_msg = f' Your new score is {new_score}'
-                    response = "Caught in the bottom of the 9th inning. You're out! -500 pts." + score_msg
+                    score_msg = f" Your new score is {new_score}"
+                    response = (
+                        "Caught in the bottom of the 9th inning. You're out! -500 pts."
+                        + score_msg
+                    )
             else:
                 if price >= target:
                     new_score = 2000
-                    score_msg = f' Your new score is {new_score}'
+                    score_msg = f" Your new score is {new_score}"
                     response = "It's outta the park, folks! +1000 pts." + score_msg
                 else:
                     response = f"Nope. Not yet. Target: Over {target} by {target_date}.\nCurrently {price}."
@@ -337,16 +378,22 @@ def babe_swing(name, ticker):
             if query_date >= target_date:
                 if price <= target:
                     new_score = 1500
-                    score_msg = f' Your new score is {new_score}'
-                    response = "It's kinda late, but it's over the fence. +500 pts." + score_msg
+                    score_msg = f" Your new score is {new_score}"
+                    response = (
+                        "It's kinda late, but it's over the fence. +500 pts."
+                        + score_msg
+                    )
                 else:
                     new_score = 500
-                    score_msg = f' Your new score is {new_score}'
-                    response = "Caught in the bottom of the 9th inning. You're out! -500 pts." + score_msg
+                    score_msg = f" Your new score is {new_score}"
+                    response = (
+                        "Caught in the bottom of the 9th inning. You're out! -500 pts."
+                        + score_msg
+                    )
             else:
                 if price <= target:
                     new_score = 1500
-                    score_msg = f' Your new score is {new_score}'
+                    score_msg = f" Your new score is {new_score}"
                     response = "It's outta the park, folks! +500." + score_msg
                 else:
                     response = f"Nope. Not yet. Target: Under {target} by {target_date}.\nCurrently {price}."
@@ -357,12 +404,8 @@ def babe_swing(name, ticker):
     return response
 
 
-
-    
-
-
-#Artifact for one-time command line runs
-'''
+# Artifact for one-time command line runs
+"""
 if __name__ == '__main__':
     create_db()
-'''
+"""
